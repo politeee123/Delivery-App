@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_delivery/pages/register_rider.dart';
 import 'sign_in.dart';
 import 'register_user.dart';
 
@@ -60,7 +61,12 @@ class LoginPage extends StatelessWidget {
                 minimumSize: const Size(250, 60),
               ),
               onPressed: () {
-                // TODO: ทำหน้า register_delivery.dart
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const RegisterRiderPage(),
+                  ),
+                );
               },
               child: const Text("สมัครเป็นคนส่งสินค้า"),
             ),

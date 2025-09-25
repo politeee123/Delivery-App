@@ -1,15 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
+import 'select_location.dart';
 
-class RegisterUserPage extends StatelessWidget {
+class RegisterUserPage extends StatefulWidget {
   const RegisterUserPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final nameController = TextEditingController();
-    final phoneController = TextEditingController();
-    final passwordController = TextEditingController();
-    final confirmPasswordController = TextEditingController();
+  State<RegisterUserPage> createState() => _RegisterUserPageState();
+}
 
+class _RegisterUserPageState extends State<RegisterUserPage> {
+  final nameController = TextEditingController();
+  final phoneController = TextEditingController();
+  final passwordController = TextEditingController();
+  final confirmPasswordController = TextEditingController();
+
+  LatLng? selectedLocation; // เก็บพิกัดที่เลือก
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.green,
       body: Center(
@@ -78,10 +87,24 @@ class RegisterUserPage extends StatelessWidget {
 
                 // ปุ่มเลือก GPS
                 ElevatedButton(
-                  onPressed: () {
-                    // TODO: ดึงตำแหน่ง GPS
+                  onPressed: () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SelectLocationPage(),
+                      ),
+                    );
+                    if (result != null) {
+                      setState(() {
+                        selectedLocation = result;
+                      });
+                    }
                   },
-                  child: const Text("GPS"),
+                  child: Text(
+                    selectedLocation == null
+                        ? "เลือกตำแหน่งที่อยู่"
+                        : "พิกัด: ${selectedLocation!.latitude}, ${selectedLocation!.longitude}",
+                  ),
                 ),
                 const SizedBox(height: 15),
 
@@ -94,6 +117,7 @@ class RegisterUserPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 15),
+
                 TextField(
                   controller: confirmPasswordController,
                   obscureText: true,

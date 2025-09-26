@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RegisterRiderPage extends StatefulWidget {
   const RegisterRiderPage({super.key});
@@ -12,73 +13,102 @@ class RegisterRiderPage extends StatefulWidget {
 }
 
 class _RegisterRiderPageState extends State<RegisterRiderPage> {
-  final nameController = TextEditingController();
-  final phoneController = TextEditingController();
-  final passwordController = TextEditingController();
-  final confirmPasswordController = TextEditingController();
-  final licensePlateController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
 
-  File? profileImageFile;
-  File? vehicleImageFile;
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
+  final TextEditingController _vehicleNumberController =
+      TextEditingController();
 
-  Future<void> pickProfileImage() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
-    if (picked != null) {
+  File? _riderImage;
+  File? _vehicleImage;
+  final ImagePicker _picker = ImagePicker();
+
+  // เลือกรูปผู้ขับ
+  Future<void> pickRiderImage() async {
+    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
       setState(() {
-        profileImageFile = File(picked.path);
+        _riderImage = File(pickedFile.path);
       });
     }
   }
 
+  // เลือกรูปยานพาหนะ
   Future<void> pickVehicleImage() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
-    if (picked != null) {
+    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
       setState(() {
-        vehicleImageFile = File(picked.path);
+        _vehicleImage = File(pickedFile.path);
       });
     }
   }
 
   Future<void> registerRider() async {
-  try {
-    // upload รูปโปรไฟล์
-    String? profileUrl;
-    if (profileImageFile != null) {
-      final ref = FirebaseStorage.instance.ref().child(
-          'riders/profile_${DateTime.now().millisecondsSinceEpoch}.jpg');
-      final uploadTask = await ref.putFile(profileImageFile!);
-      profileUrl = await ref.getDownloadURL();
+  if (_formKey.currentState!.validate()) {
+    try {
+      final supabase = Supabase.instance.client;
+
+      // upload รูปผู้ขับ
+      String? riderUrl;
+      if (_riderImage != null) {
+        final fileName =
+            'profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+        // upload ไป bucket "riders"
+        await supabase.storage
+            .from('riders') // ชื่อ bucket
+            .upload(fileName, _riderImage!);
+
+        // เอา URL public
+        riderUrl = supabase.storage.from('riders').getPublicUrl(fileName);
+      }
+
+      // upload รูปรถ
+      String? vehicleUrl;
+      if (_vehicleImage != null) {
+        final fileName =
+            'vehicle_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+        await supabase.storage
+            .from('riders') // bucket เดียวกันได้
+            .upload(fileName, _vehicleImage!);
+
+        vehicleUrl = supabase.storage.from('riders').getPublicUrl(fileName);
+      }
+
+      // บันทึกข้อมูลใน Firestore (ถ้าคุณยังอยากใช้ Firestore เก็บข้อมูลผู้ขับ)
+      await FirebaseFirestore.instance.collection('riders').add({
+        'Name': _nameController.text,
+        'Phone': _phoneController.text,
+        'Password': _passwordController.text,
+        'VehicleNumber': _vehicleNumberController.text,
+        'RiderImage': riderUrl ?? '',
+        'VehicleImage': vehicleUrl ?? '',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // หรือบันทึกข้อมูลไป Supabase Database ก็ได้
+      // await supabase.from('riders').insert({
+      //   'name': _nameController.text,
+      //   'phone': _phoneController.text,
+      //   'password': _passwordController.text,
+      //   'vehicle_number': _vehicleNumberController.text,
+      //   'rider_image': riderUrl ?? '',
+      //   'vehicle_image': vehicleUrl ?? '',
+      // });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('สมัครสำเร็จ!')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('เกิดข้อผิดพลาด: $e')),
+      );
     }
-
-    // upload รูปรถ
-    String? vehicleUrl;
-    if (vehicleImageFile != null) {
-      final ref = FirebaseStorage.instance.ref().child(
-          'riders/vehicle_${DateTime.now().millisecondsSinceEpoch}.jpg');
-      final uploadTask = await ref.putFile(vehicleImageFile!);
-      vehicleUrl = await ref.getDownloadURL();
-    }
-
-    // บันทึก Firestore
-    await FirebaseFirestore.instance.collection('riders').add({
-      'name': nameController.text,
-      'phone': phoneController.text,
-      'licensePlate': licensePlateController.text,
-      'password': passwordController.text,
-      'profileImageUrl': profileUrl ?? '',
-      'vehicleImageUrl': vehicleUrl ?? '',
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('สมัครสำเร็จ!')),
-    );
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('เกิดข้อผิดพลาด: $e')),
-    );
   }
 }
 
@@ -96,117 +126,135 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Column(
-              children: [
-                const CircleAvatar(
-                  radius: 50,
-                  backgroundImage: AssetImage('assets/logo.png'),
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  "Sign in rider",
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
+            child: Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  const CircleAvatar(
+                    radius: 50,
+                    backgroundImage: AssetImage('assets/logo.png'),
                   ),
-                ),
-                const SizedBox(height: 20),
-
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: "ชื่อ",
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 15),
-
-                TextField(
-                  controller: phoneController,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: "หมายเลขโทรศัพท์",
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 15),
-
-                // เลือกรูปโปรไฟล์
-                Row(
-                  children: [
-                    ElevatedButton(
-                      onPressed: pickProfileImage,
-                      child: const Text("เลือกรูปโปรไฟล์"),
+                  const SizedBox(height: 20),
+                  const Text(
+                    "Sign in rider",
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
                     ),
-                    const SizedBox(width: 10),
-                    CircleAvatar(
-                      radius: 25,
-                      backgroundImage: profileImageFile != null
-                          ? FileImage(profileImageFile!)
-                          : const AssetImage('assets/profile_placeholder.png')
+                  ),
+                  const SizedBox(height: 20),
+
+                  TextFormField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: "ชื่อ",
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) =>
+                        value!.isEmpty ? 'กรุณากรอกชื่อ' : null,
+                  ),
+                  const SizedBox(height: 15),
+
+                  TextFormField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: "หมายเลขโทรศัพท์",
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) =>
+                        value!.isEmpty ? 'กรุณากรอกเบอร์โทร' : null,
+                  ),
+                  const SizedBox(height: 15),
+
+                  // เลือกรูปผู้ขับ
+                  Row(
+                    children: [
+                      ElevatedButton(
+                        onPressed: pickRiderImage,
+                        child: const Text("เลือกรูปโปรไฟล์"),
+                      ),
+                      const SizedBox(width: 10),
+                      CircleAvatar(
+                        radius: 25,
+                        backgroundImage: _riderImage != null
+                            ? FileImage(_riderImage!)
+                            : const AssetImage('assets/profile_placeholder.png')
                                 as ImageProvider,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 15),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 15),
 
-                // เลือกรูปรถ
-                Row(
-                  children: [
-                    ElevatedButton(
-                      onPressed: pickVehicleImage,
-                      child: const Text("เลือกรูปยานพาหนะ"),
-                    ),
-                    const SizedBox(width: 10),
-                    CircleAvatar(
-                      radius: 25,
-                      backgroundImage: vehicleImageFile != null
-                          ? FileImage(vehicleImageFile!)
-                          : const AssetImage('assets/vehicle_placeholder.png')
+                  // เลือกรูปรถ
+                  Row(
+                    children: [
+                      ElevatedButton(
+                        onPressed: pickVehicleImage,
+                        child: const Text("เลือกรูปยานพาหนะ"),
+                      ),
+                      const SizedBox(width: 10),
+                      CircleAvatar(
+                        radius: 25,
+                        backgroundImage: _vehicleImage != null
+                            ? FileImage(_vehicleImage!)
+                            : const AssetImage('assets/vehicle_placeholder.png')
                                 as ImageProvider,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 15),
+
+                  TextFormField(
+                    controller: _vehicleNumberController,
+                    decoration: const InputDecoration(
+                      labelText: "ทะเบียนรถ",
+                      border: OutlineInputBorder(),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 15),
-
-                TextField(
-                  controller: licensePlateController,
-                  decoration: const InputDecoration(
-                    labelText: "ทะเบียนรถ",
-                    border: OutlineInputBorder(),
+                    validator: (value) =>
+                        value!.isEmpty ? 'กรุณากรอกทะเบียนรถ' : null,
                   ),
-                ),
-                const SizedBox(height: 15),
+                  const SizedBox(height: 15),
 
-                TextField(
-                  controller: passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: "รหัสผ่าน",
-                    border: OutlineInputBorder(),
+                  TextFormField(
+                    controller: _passwordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: "รหัสผ่าน",
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) =>
+                        value!.length < 6 ? 'รหัสผ่านต้องอย่างน้อย 6 ตัว' : null,
                   ),
-                ),
-                const SizedBox(height: 15),
+                  const SizedBox(height: 15),
 
-                TextField(
-                  controller: confirmPasswordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: "ยืนยันรหัสผ่าน",
-                    border: OutlineInputBorder(),
+                  TextFormField(
+                    controller: _confirmPasswordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: "ยืนยันรหัสผ่าน",
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      if (value!.isEmpty) return 'กรุณากรอกยืนยันรหัสผ่าน';
+                      if (value != _passwordController.text) {
+                        return 'รหัสผ่านไม่ตรงกัน';
+                      }
+                      return null;
+                    },
                   ),
-                ),
-                const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-                ElevatedButton(
-                  onPressed: registerRider,
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 50),
+                  ElevatedButton(
+                    onPressed: registerRider,
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50),
+                    ),
+                    child: const Text("Sign in"),
                   ),
-                  child: const Text("Sign in"),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

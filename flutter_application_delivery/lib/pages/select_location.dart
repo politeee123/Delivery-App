@@ -13,6 +13,8 @@ class SelectLocationPage extends StatefulWidget {
 class _SelectLocationPageState extends State<SelectLocationPage> {
   LatLng? _selectedLocation;
   LatLng? _currentLocation;
+  final MapController _mapController =
+      MapController(); // <-- สร้าง MapController
 
   @override
   void initState() {
@@ -24,26 +26,17 @@ class _SelectLocationPageState extends State<SelectLocationPage> {
     bool serviceEnabled;
     LocationPermission permission;
 
-    // ตรวจสอบว่าเปิด Location service อยู่ไหม
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      return;
-    }
+    if (!serviceEnabled) return;
 
-    // ขอ permission
     permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        return;
-      }
+      if (permission == LocationPermission.denied) return;
     }
 
-    if (permission == LocationPermission.deniedForever) {
-      return;
-    }
+    if (permission == LocationPermission.deniedForever) return;
 
-    // ดึงพิกัดปัจจุบัน
     Position position = await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high,
     );
@@ -52,28 +45,25 @@ class _SelectLocationPageState extends State<SelectLocationPage> {
       _currentLocation = LatLng(position.latitude, position.longitude);
       _selectedLocation = _currentLocation;
     });
+
+    // สั่งให้แผนที่มุดไปตำแหน่งปัจจุบันหลัง Widget สร้างเสร็จ
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_currentLocation != null) {
+        _mapController.move(_currentLocation!, 15);
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("เลือกตำแหน่งที่อยู่"),
-        actions: [
-          TextButton(
-            onPressed: () {
-              if (_selectedLocation != null) {
-                Navigator.pop(context, _selectedLocation); // ส่งค่ากลับ
-              }
-            },
-            child: const Text("ตกลง", style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text("เลือกตำแหน่งที่อยู่")),
       body: _currentLocation == null
           ? const Center(child: CircularProgressIndicator())
           : FlutterMap(
+              mapController: _mapController,
               options: MapOptions(
+                // แก้ไขตรงนี้
                 initialCenter: _currentLocation!,
                 initialZoom: 15,
                 onTap: (tapPosition, point) {
@@ -105,6 +95,19 @@ class _SelectLocationPageState extends State<SelectLocationPage> {
                   ),
               ],
             ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          if (_selectedLocation != null) {
+            Navigator.pop(context, _selectedLocation);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("กรุณาเลือกตำแหน่งก่อน")),
+            );
+          }
+        },
+        label: const Text("ยืนยันตำแหน่งนี้"),
+        icon: const Icon(Icons.check),
+      ),
     );
   }
 }

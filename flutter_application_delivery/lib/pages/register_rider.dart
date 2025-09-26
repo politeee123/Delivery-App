@@ -48,70 +48,72 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
   }
 
   Future<void> registerRider() async {
-  if (_formKey.currentState!.validate()) {
-    try {
-      final supabase = Supabase.instance.client;
+    if (_formKey.currentState!.validate()) {
+      try {
+        final supabase = Supabase.instance.client;
 
-      // upload รูปผู้ขับ
-      String? riderUrl;
-      if (_riderImage != null) {
-        final fileName =
-            'profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        // ✅ เช็กว่ามีเบอร์นี้แล้วใน Firestore หรือยัง
+        final existQuery = await FirebaseFirestore.instance
+            .collection('riders')
+            .where('Phone', isEqualTo: _phoneController.text.trim())
+            .limit(1)
+            .get();
 
-        // upload ไป bucket "riders"
-        await supabase.storage
-            .from('riders') // ชื่อ bucket
-            .upload(fileName, _riderImage!);
+        if (existQuery.docs.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('เบอร์โทรนี้มีอยู่แล้ว')),
+          );
+          return; // หยุดทำงานถ้าเบอร์ซ้ำ
+        }
 
-        // เอา URL public
-        riderUrl = supabase.storage.from('riders').getPublicUrl(fileName);
+        // upload รูปผู้ขับ
+        String? riderUrl;
+        if (_riderImage != null) {
+          final fileName =
+              'profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+          await supabase.storage
+              .from('riders') // ชื่อ bucket
+              .upload(fileName, _riderImage!);
+
+          riderUrl = supabase.storage.from('riders').getPublicUrl(fileName);
+        }
+
+        // upload รูปรถ
+        String? vehicleUrl;
+        if (_vehicleImage != null) {
+          final fileName =
+              'vehicle_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+          await supabase.storage
+              .from('riders') // bucket เดียวกัน
+              .upload(fileName, _vehicleImage!);
+
+          vehicleUrl = supabase.storage.from('riders').getPublicUrl(fileName);
+        }
+
+        // บันทึกข้อมูลใน Firestore
+        await FirebaseFirestore.instance.collection('riders').add({
+          'Name': _nameController.text.trim(),
+          'Phone': _phoneController.text.trim(),
+          'Password': _passwordController.text.trim(),
+          'VehicleNumber': _vehicleNumberController.text.trim(),
+          'RiderImage': riderUrl ?? '',
+          'VehicleImage': vehicleUrl ?? '',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('สมัครสำเร็จ!')));
+        Navigator.pop(context);
+      } catch (e) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
       }
-
-      // upload รูปรถ
-      String? vehicleUrl;
-      if (_vehicleImage != null) {
-        final fileName =
-            'vehicle_${DateTime.now().millisecondsSinceEpoch}.jpg';
-
-        await supabase.storage
-            .from('riders') // bucket เดียวกันได้
-            .upload(fileName, _vehicleImage!);
-
-        vehicleUrl = supabase.storage.from('riders').getPublicUrl(fileName);
-      }
-
-      // บันทึกข้อมูลใน Firestore (ถ้าคุณยังอยากใช้ Firestore เก็บข้อมูลผู้ขับ)
-      await FirebaseFirestore.instance.collection('riders').add({
-        'Name': _nameController.text,
-        'Phone': _phoneController.text,
-        'Password': _passwordController.text,
-        'VehicleNumber': _vehicleNumberController.text,
-        'RiderImage': riderUrl ?? '',
-        'VehicleImage': vehicleUrl ?? '',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      // หรือบันทึกข้อมูลไป Supabase Database ก็ได้
-      // await supabase.from('riders').insert({
-      //   'name': _nameController.text,
-      //   'phone': _phoneController.text,
-      //   'password': _passwordController.text,
-      //   'vehicle_number': _vehicleNumberController.text,
-      //   'rider_image': riderUrl ?? '',
-      //   'vehicle_image': vehicleUrl ?? '',
-      // });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('สมัครสำเร็จ!')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('เกิดข้อผิดพลาด: $e')),
-      );
     }
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
@@ -181,7 +183,7 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
                         backgroundImage: _riderImage != null
                             ? FileImage(_riderImage!)
                             : const AssetImage('assets/profile_placeholder.png')
-                                as ImageProvider,
+                                  as ImageProvider,
                       ),
                     ],
                   ),
@@ -200,7 +202,7 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
                         backgroundImage: _vehicleImage != null
                             ? FileImage(_vehicleImage!)
                             : const AssetImage('assets/vehicle_placeholder.png')
-                                as ImageProvider,
+                                  as ImageProvider,
                       ),
                     ],
                   ),
@@ -219,19 +221,22 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
 
                   TextFormField(
                     controller: _passwordController,
-                    obscureText: true,
+                    obscureText: true, // ✅ ซ่อนรหัส
+                    obscuringCharacter: '*', // ✅ แสดงเป็น *
                     decoration: const InputDecoration(
                       labelText: "รหัสผ่าน",
                       border: OutlineInputBorder(),
                     ),
-                    validator: (value) =>
-                        value!.length < 6 ? 'รหัสผ่านต้องอย่างน้อย 6 ตัว' : null,
+                    validator: (value) => value!.length < 6
+                        ? 'รหัสผ่านต้องอย่างน้อย 6 ตัว'
+                        : null,
                   ),
                   const SizedBox(height: 15),
 
                   TextFormField(
                     controller: _confirmPasswordController,
-                    obscureText: true,
+                    obscureText: true, // ✅ ซ่อนรหัส
+                    obscuringCharacter: '*', // ✅ แสดงเป็น *
                     decoration: const InputDecoration(
                       labelText: "ยืนยันรหัสผ่าน",
                       border: OutlineInputBorder(),

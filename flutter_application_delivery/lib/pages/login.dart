@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_delivery/pages/register_rider.dart';
-import 'sign_in.dart';
+import 'package:flutter_application_delivery/pages/sign_in_rider.dart';
+import 'sign_in_user.dart';
 import 'register_user.dart';
 
 class LoginPage extends StatelessWidget {
@@ -29,10 +30,28 @@ class LoginPage extends StatelessWidget {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const SignInPage()),
+                  MaterialPageRoute(
+                    builder: (context) => const SignInUserPage(),
+                  ),
                 );
               },
-              child: const Text("มีบัญชีแล้ว"),
+              child: const Text("LoginUser"),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.pink[100],
+                minimumSize: const Size(250, 60),
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SignInRiderPage(),
+                  ),
+                );
+              },
+              child: const Text("LoginRider"),
             ),
             const SizedBox(height: 20),
 

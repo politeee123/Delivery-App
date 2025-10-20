@@ -15,17 +15,17 @@ class SignInUserPage extends StatelessWidget {
       final password = passwordController.text.trim();
 
       if (phone.isEmpty || password.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('กรุณากรอกข้อมูลให้ครบ')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('กรุณากรอกข้อมูลให้ครบ')),
+        );
         return;
       }
 
       try {
-        // ดึง User ตามเบอร์โทร
+        // 🔹 ดึง user จาก Firestore ตามเบอร์โทร
         final querySnapshot = await FirebaseFirestore.instance
-            .collection('users') // ชื่อ collection
-            .where('Phone', isEqualTo: phone) // field phone ใน Firestore
+            .collection('users')
+            .where('Phone', isEqualTo: phone)
             .limit(1)
             .get();
 
@@ -36,28 +36,33 @@ class SignInUserPage extends StatelessWidget {
           return;
         }
 
-        final userData = querySnapshot.docs.first.data();
-        final dbPassword = userData['Password']; // field password ใน Firestore
+        final userDoc = querySnapshot.docs.first;
+        final userData = userDoc.data();
+        final dbPassword = userData['Password'];
+        final userId = userDoc.id; // ✅ ดึง ID ของเอกสารผู้ใช้
 
         if (dbPassword == password) {
-          // ล็อกอินสำเร็จ
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('เข้าสู่ระบบสำเร็จ')));
+          // ✅ ล็อกอินสำเร็จ
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('เข้าสู่ระบบสำเร็จ')),
+          );
 
-          Navigator.push(
+          // ✅ ส่ง userId ไปที่หน้า HomeUser
+          Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const HomeUser()),
+            MaterialPageRoute(
+              builder: (context) => HomeUser(id: userId),
+            ),
           );
         } else {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('รหัสผ่านไม่ถูกต้อง')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('รหัสผ่านไม่ถูกต้อง')),
+          );
         }
       } catch (e) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('เกิดข้อผิดพลาด: $e')),
+        );
       }
     }
 

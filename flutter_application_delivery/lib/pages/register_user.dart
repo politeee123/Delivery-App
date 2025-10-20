@@ -22,7 +22,8 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
   final TextEditingController _confirmPasswordController =
       TextEditingController();
 
-  LatLng? selectedLocation;
+  LatLng? selectedLocation1;
+  LatLng? selectedLocation2;
   File? _userImage;
   final ImagePicker _picker = ImagePicker();
 
@@ -41,7 +42,7 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
       try {
         final supabase = Supabase.instance.client;
 
-        // ✅ เช็กเบอร์ซ้ำใน Firestore
+        // ✅ ตรวจสอบเบอร์โทรซ้ำ
         final existQuery = await FirebaseFirestore.instance
             .collection('users')
             .where('Phone', isEqualTo: _phoneController.text.trim())
@@ -52,10 +53,10 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('เบอร์โทรนี้ถูกใช้งานแล้ว')),
           );
-          return; // ถ้าเบอร์ซ้ำไม่ให้สมัคร
+          return;
         }
 
-        // อัพโหลดรูปไป Supabase Storage
+        // ✅ อัปโหลดรูปไป Supabase Storage
         String? userUrl;
         if (_userImage != null) {
           final fileName = 'user_${DateTime.now().millisecondsSinceEpoch}.jpg';
@@ -63,30 +64,63 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
           userUrl = supabase.storage.from('users').getPublicUrl(fileName);
         }
 
-        // บันทึกลง Firestore
-        await FirebaseFirestore.instance.collection('users').add({
+        // ✅ เพิ่ม user document
+        final userRef =
+            await FirebaseFirestore.instance.collection('users').add({
           'Name': _nameController.text.trim(),
           'Phone': _phoneController.text.trim(),
           'Password': _passwordController.text.trim(),
           'Image': userUrl ?? '',
-          'Location': selectedLocation != null
-              ? {
-                  'lat': selectedLocation!.latitude,
-                  'lng': selectedLocation!.longitude,
-                }
-              : null,
           'createdAt': FieldValue.serverTimestamp(),
         });
 
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('สมัครสมาชิกสำเร็จ!')));
-        Navigator.pop(context); // ย้อนกลับ
+        // ✅ ถ้ามีการเลือกพิกัด ให้บันทึกลง subcollection addresses
+        if (selectedLocation1 != null) {
+          await userRef.collection('addresses').add({
+            'label': 'ที่อยู่ 1',
+            'lat': selectedLocation1!.latitude,
+            'lng': selectedLocation1!.longitude,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        }
+
+        if (selectedLocation2 != null) {
+          await userRef.collection('addresses').add({
+            'label': 'ที่อยู่ 2',
+            'lat': selectedLocation2!.latitude,
+            'lng': selectedLocation2!.longitude,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('สมัครสมาชิกสำเร็จ!')),
+        );
+        Navigator.pop(context);
       } catch (e) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('เกิดข้อผิดพลาด: $e')),
+        );
       }
+    }
+  }
+
+  Future<void> pickLocation(int slot) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const SelectLocationPage(),
+      ),
+    );
+
+    if (result != null) {
+      setState(() {
+        if (slot == 1) {
+          selectedLocation1 = result;
+        } else {
+          selectedLocation2 = result;
+        }
+      });
     }
   }
 
@@ -147,7 +181,7 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
                   ),
                   const SizedBox(height: 15),
 
-                  // เลือกรูป
+                  // รูปโปรไฟล์
                   Row(
                     children: [
                       ElevatedButton(
@@ -160,41 +194,39 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
                         backgroundImage: _userImage != null
                             ? FileImage(_userImage!)
                             : const AssetImage('assets/profile_placeholder.png')
-                                  as ImageProvider,
+                                as ImageProvider,
                       ),
                     ],
                   ),
                   const SizedBox(height: 15),
 
-                  // เลือกพิกัด
+                  // พิกัดที่อยู่ 1
                   ElevatedButton(
-                    onPressed: () async {
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const SelectLocationPage(),
-                        ),
-                      );
-                      if (result != null) {
-                        setState(() {
-                          selectedLocation = result;
-                        });
-                      }
-                    },
+                    onPressed: () => pickLocation(1),
                     child: Text(
-                      selectedLocation == null
-                          ? "เลือกตำแหน่งที่อยู่"
-                          : "พิกัด: ${selectedLocation!.latitude}, ${selectedLocation!.longitude}",
+                      selectedLocation1 == null
+                          ? "เลือกตำแหน่งที่อยู่ 1"
+                          : "ที่อยู่ 1: ${selectedLocation1!.latitude}, ${selectedLocation1!.longitude}",
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // พิกัดที่อยู่ 2
+                  ElevatedButton(
+                    onPressed: () => pickLocation(2),
+                    child: Text(
+                      selectedLocation2 == null
+                          ? "เลือกตำแหน่งที่อยู่ 2"
+                          : "ที่อยู่ 2: ${selectedLocation2!.latitude}, ${selectedLocation2!.longitude}",
                     ),
                   ),
                   const SizedBox(height: 15),
 
                   // รหัสผ่าน
-                  // รหัสผ่าน
                   TextFormField(
                     controller: _passwordController,
-                    obscureText: true, // ซ่อนรหัส
-                    obscuringCharacter: '*', // ใช้ * แทน •
+                    obscureText: true,
+                    obscuringCharacter: '*',
                     decoration: const InputDecoration(
                       labelText: "รหัสผ่าน",
                       border: OutlineInputBorder(),
@@ -209,7 +241,7 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
                   TextFormField(
                     controller: _confirmPasswordController,
                     obscureText: true,
-                    obscuringCharacter: '*', // ใช้ * แทน •
+                    obscuringCharacter: '*',
                     decoration: const InputDecoration(
                       labelText: "ยืนยันรหัสผ่าน",
                       border: OutlineInputBorder(),

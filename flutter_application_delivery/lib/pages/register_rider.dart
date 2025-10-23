@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 
 class RegisterRiderPage extends StatefulWidget {
   const RegisterRiderPage({super.key});
@@ -20,31 +21,52 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
-  final TextEditingController _vehicleNumberController =
-      TextEditingController();
+  final TextEditingController _vehicleNumberController = TextEditingController();
 
   File? _riderImage;
   File? _vehicleImage;
   final ImagePicker _picker = ImagePicker();
 
-  // เลือกรูปผู้ขับ
   Future<void> pickRiderImage() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
-      setState(() {
-        _riderImage = File(pickedFile.path);
-      });
+      setState(() => _riderImage = File(pickedFile.path));
     }
   }
 
-  // เลือกรูปยานพาหนะ
   Future<void> pickVehicleImage() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
-      setState(() {
-        _vehicleImage = File(pickedFile.path);
-      });
+      setState(() => _vehicleImage = File(pickedFile.path));
     }
+  }
+
+  // ✅ ฟังก์ชันขอสิทธิ์และดึงพิกัดปัจจุบัน
+  Future<Position> _getCurrentLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // ตรวจสอบว่ามีการเปิด GPS หรือไม่
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      throw Exception('กรุณาเปิด GPS');
+    }
+
+    // ขอสิทธิ์เข้าถึงตำแหน่ง
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        throw Exception('ปฏิเสธการเข้าถึงตำแหน่ง');
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      throw Exception('ปิดสิทธิ์เข้าถึงตำแหน่งถาวร กรุณาเปิดในการตั้งค่า');
+    }
+
+    return await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high);
   }
 
   Future<void> registerRider() async {
@@ -63,19 +85,18 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('เบอร์โทรนี้มีอยู่แล้ว')),
           );
-          return; // หยุดทำงานถ้าเบอร์ซ้ำ
+          return;
         }
+
+        // ✅ ดึงตำแหน่งปัจจุบัน
+        Position position = await _getCurrentLocation();
 
         // upload รูปผู้ขับ
         String? riderUrl;
         if (_riderImage != null) {
           final fileName =
               'profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
-
-          await supabase.storage
-              .from('riders') // ชื่อ bucket
-              .upload(fileName, _riderImage!);
-
+          await supabase.storage.from('riders').upload(fileName, _riderImage!);
           riderUrl = supabase.storage.from('riders').getPublicUrl(fileName);
         }
 
@@ -84,15 +105,11 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
         if (_vehicleImage != null) {
           final fileName =
               'vehicle_${DateTime.now().millisecondsSinceEpoch}.jpg';
-
-          await supabase.storage
-              .from('riders') // bucket เดียวกัน
-              .upload(fileName, _vehicleImage!);
-
+          await supabase.storage.from('riders').upload(fileName, _vehicleImage!);
           vehicleUrl = supabase.storage.from('riders').getPublicUrl(fileName);
         }
 
-        // บันทึกข้อมูลใน Firestore
+        // ✅ บันทึกข้อมูลใน Firestore พร้อมตำแหน่ง
         await FirebaseFirestore.instance.collection('riders').add({
           'Name': _nameController.text.trim(),
           'Phone': _phoneController.text.trim(),
@@ -100,17 +117,17 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
           'VehicleNumber': _vehicleNumberController.text.trim(),
           'RiderImage': riderUrl ?? '',
           'VehicleImage': vehicleUrl ?? '',
+          'latitude': position.latitude,
+          'longitude': position.longitude,
           'createdAt': FieldValue.serverTimestamp(),
         });
 
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('สมัครสำเร็จ!')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('สมัครสำเร็จ!')));
         Navigator.pop(context);
       } catch (e) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
       }
     }
   }
@@ -170,7 +187,6 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
                   ),
                   const SizedBox(height: 15),
 
-                  // เลือกรูปผู้ขับ
                   Row(
                     children: [
                       ElevatedButton(
@@ -183,13 +199,12 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
                         backgroundImage: _riderImage != null
                             ? FileImage(_riderImage!)
                             : const AssetImage('assets/profile_placeholder.png')
-                                  as ImageProvider,
+                                as ImageProvider,
                       ),
                     ],
                   ),
                   const SizedBox(height: 15),
 
-                  // เลือกรูปรถ
                   Row(
                     children: [
                       ElevatedButton(
@@ -202,7 +217,7 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
                         backgroundImage: _vehicleImage != null
                             ? FileImage(_vehicleImage!)
                             : const AssetImage('assets/vehicle_placeholder.png')
-                                  as ImageProvider,
+                                as ImageProvider,
                       ),
                     ],
                   ),
@@ -221,8 +236,8 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
 
                   TextFormField(
                     controller: _passwordController,
-                    obscureText: true, // ✅ ซ่อนรหัส
-                    obscuringCharacter: '*', // ✅ แสดงเป็น *
+                    obscureText: true,
+                    obscuringCharacter: '*',
                     decoration: const InputDecoration(
                       labelText: "รหัสผ่าน",
                       border: OutlineInputBorder(),
@@ -235,8 +250,8 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
 
                   TextFormField(
                     controller: _confirmPasswordController,
-                    obscureText: true, // ✅ ซ่อนรหัส
-                    obscuringCharacter: '*', // ✅ แสดงเป็น *
+                    obscureText: true,
+                    obscuringCharacter: '*',
                     decoration: const InputDecoration(
                       labelText: "ยืนยันรหัสผ่าน",
                       border: OutlineInputBorder(),

@@ -15,14 +15,14 @@ class SignInRiderPage extends StatelessWidget {
       final password = passwordController.text.trim();
 
       if (phone.isEmpty || password.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('กรุณากรอกข้อมูลให้ครบ')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('กรุณากรอกข้อมูลให้ครบ')),
+        );
         return;
       }
 
       try {
-        // ดึง rider ตามเบอร์โทร
+        // 🔹 ค้นหา rider ตามเบอร์โทร
         final querySnapshot = await FirebaseFirestore.instance
             .collection('riders')
             .where('Phone', isEqualTo: phone)
@@ -36,28 +36,32 @@ class SignInRiderPage extends StatelessWidget {
           return;
         }
 
-        final riderData = querySnapshot.docs.first.data();
+        final riderDoc = querySnapshot.docs.first;
+        final riderData = riderDoc.data();
+        final riderId = riderDoc.id; // ✅ ได้ riderId จาก Firestore
         final dbPassword = riderData['Password'];
 
         if (dbPassword == password) {
-          // ล็อกอินสำเร็จ
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('เข้าสู่ระบบสำเร็จ')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('เข้าสู่ระบบสำเร็จ')),
+          );
 
-          Navigator.push(
+          // 🔹 ส่ง riderId ไปหน้า HomeRider
+          Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const HomeRider()),
+            MaterialPageRoute(
+              builder: (context) => HomeRider(riderId: riderId),
+            ),
           );
         } else {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('รหัสผ่านไม่ถูกต้อง')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('รหัสผ่านไม่ถูกต้อง')),
+          );
         }
       } catch (e) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('เกิดข้อผิดพลาด: $e')),
+        );
       }
     }
 
@@ -80,7 +84,7 @@ class SignInRiderPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
                 const Text(
-                  "LoginRider",
+                  "Login Rider",
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -88,7 +92,6 @@ class SignInRiderPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 20),
-
                 TextField(
                   controller: phoneController,
                   keyboardType: TextInputType.phone,
@@ -98,7 +101,6 @@ class SignInRiderPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 15),
-
                 TextField(
                   controller: passwordController,
                   obscureText: true,
@@ -108,13 +110,16 @@ class SignInRiderPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 20),
-
                 ElevatedButton(
                   onPressed: loginRider,
                   style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
                     minimumSize: const Size(double.infinity, 50),
                   ),
-                  child: const Text("Log In"),
+                  child: const Text(
+                    "เข้าสู่ระบบ",
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ],
             ),

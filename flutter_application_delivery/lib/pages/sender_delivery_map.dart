@@ -44,43 +44,55 @@ class _SenderDeliveryMapPageState extends State<SenderDeliveryMapPage> {
             .collection('delivery')
             .where('sender_id', isEqualTo: widget.senderId)
             .snapshots(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+        builder: (context, deliverySnapshot) {
+          if (!deliverySnapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final deliveries = snapshot.data!.docs;
+          final deliveries = deliverySnapshot.data!.docs;
           if (deliveries.isEmpty) {
             return const Center(child: Text("ยังไม่มีการจัดส่ง"));
           }
 
-          return FutureBuilder<List<Marker>>(
-            future: _buildAllMarkers(deliveries),
-            builder: (context, markerSnapshot) {
-              if (!markerSnapshot.hasData) {
+          // ✅ ใช้ StreamBuilder ซ้อนอีกตัว เพื่อให้ตำแหน่ง Rider อัปเดตแบบ real-time
+          return StreamBuilder<QuerySnapshot>(
+            stream:
+                FirebaseFirestore.instance.collection('riders').snapshots(),
+            builder: (context, riderSnapshot) {
+              if (!riderSnapshot.hasData) {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              final markers = markerSnapshot.data!;
-              if (markers.isEmpty) {
-                return const Center(child: Text("ไม่พบตำแหน่งบนแผนที่"));
-              }
+              final riders = riderSnapshot.data!.docs;
+              return FutureBuilder<List<Marker>>(
+                future: _buildAllMarkers(deliveries, riders),
+                builder: (context, markerSnapshot) {
+                  if (!markerSnapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-              final center = markers.first.point;
-              return FlutterMap(
-                mapController: _mapController,
-                options: MapOptions(
-                  initialCenter: center,
-                  initialZoom: 12,
-                ),
-                children: [
-                  TileLayer(
-                    urlTemplate:
-                        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                    subdomains: const ['a', 'b', 'c'],
-                  ),
-                  MarkerLayer(markers: markers),
-                ],
+                  final markers = markerSnapshot.data!;
+                  if (markers.isEmpty) {
+                    return const Center(child: Text("ไม่พบตำแหน่งบนแผนที่"));
+                  }
+
+                  final center = markers.first.point;
+                  return FlutterMap(
+                    mapController: _mapController,
+                    options: MapOptions(
+                      initialCenter: center,
+                      initialZoom: 12,
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate:
+                            "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                        subdomains: const ['a', 'b', 'c'],
+                      ),
+                      MarkerLayer(markers: markers),
+                    ],
+                  );
+                },
               );
             },
           );
@@ -89,12 +101,12 @@ class _SenderDeliveryMapPageState extends State<SenderDeliveryMapPage> {
     );
   }
 
-  /// ✅ โหลดจุดทั้งหมด (Sender, Receiver, Rider หลายคน)
+  /// ✅ โหลดจุดทั้งหมด (Sender, Receiver, Rider แบบ realtime)
   Future<List<Marker>> _buildAllMarkers(
-      List<QueryDocumentSnapshot> deliveries) async {
+    List<QueryDocumentSnapshot> deliveries,
+    List<QueryDocumentSnapshot> riders,
+  ) async {
     List<Marker> markers = [];
-
-    // ✅ เก็บ Rider ทั้งหมดแบบไม่ซ้ำ
     Set<String> riderIds = {};
 
     for (var delivery in deliveries) {
@@ -178,12 +190,10 @@ class _SenderDeliveryMapPageState extends State<SenderDeliveryMapPage> {
       }
     }
 
-    // 🔹 โหลดข้อมูล Rider ทุกคนในครั้งเดียว
-    for (var id in riderIds) {
-      final riderDoc =
-          await FirebaseFirestore.instance.collection('riders').doc(id).get();
-      if (riderDoc.exists) {
-        final riderData = riderDoc.data()!;
+    // 🔹 Rider markers แบบ real-time
+    for (var rider in riders) {
+      final riderData = rider.data() as Map<String, dynamic>;
+      if (riderIds.contains(rider.id)) {
         final lat = riderData['latitude']?.toDouble();
         final lng = riderData['longitude']?.toDouble();
         final name = riderData['Name'] ?? 'Rider';
@@ -230,6 +240,7 @@ class _SenderDeliveryMapPageState extends State<SenderDeliveryMapPage> {
             textAlign: TextAlign.center,
           ),
         ),
+    
       ],
     );
   }

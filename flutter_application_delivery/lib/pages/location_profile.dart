@@ -23,7 +23,7 @@ class LocationProfilePage extends StatelessWidget {
         title: Text(addressName != null
             ? "ตำแหน่งของ $addressName"
             : "ตำแหน่งที่อยู่"),
-        backgroundColor: Colors.lightBlueAccent,
+        backgroundColor: Colors.green[600],
       ),
       body: FlutterMap(
         options: MapOptions(

@@ -50,6 +50,7 @@ class _SenderPageState extends State<SenderPage> {
     return Scaffold(
       backgroundColor: Colors.green[50],
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text("Sender"),
         backgroundColor: Colors.green[700],
         foregroundColor: Colors.white,
@@ -83,7 +84,7 @@ class _SenderPageState extends State<SenderPage> {
                   );
                 },
                 icon: const Icon(Icons.add_box),
-                label: const Text("Create Delivery"),
+                label: const Text("ส่งของ"),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green[700],
                   foregroundColor: Colors.white,

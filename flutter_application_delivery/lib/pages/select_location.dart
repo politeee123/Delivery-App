@@ -57,7 +57,8 @@ class _SelectLocationPageState extends State<SelectLocationPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("เลือกตำแหน่งที่อยู่")),
+      appBar: AppBar(automaticallyImplyLeading: false,title: const Text("เลือกตำแหน่งที่อยู่")),
+      
       body: _currentLocation == null
           ? const Center(child: CircularProgressIndicator())
           : FlutterMap(

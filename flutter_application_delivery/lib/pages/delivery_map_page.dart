@@ -258,6 +258,7 @@ class _DeliveryMapPageState extends State<DeliveryMapPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text("ติดตามการจัดส่ง"),
         backgroundColor: Colors.green,
       ),

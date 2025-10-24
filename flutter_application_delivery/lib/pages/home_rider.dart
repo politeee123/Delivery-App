@@ -74,6 +74,7 @@ class _HomeRiderState extends State<HomeRider> {
     return Scaffold(
       backgroundColor: Colors.green.shade50,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text("หน้าหลักไรเดอร์"),
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,

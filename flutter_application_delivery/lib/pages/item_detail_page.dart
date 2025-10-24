@@ -61,6 +61,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
     return Scaffold(
       backgroundColor: Colors.green[50],
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: Colors.green[600],
         title: Text(
           widget.name,

@@ -3,31 +3,32 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
-class SenderDeliveryMapPage extends StatefulWidget {
-  final String senderId;
-  const SenderDeliveryMapPage({super.key, required this.senderId});
+class ReceiverDeliveryMapPage extends StatefulWidget {
+  final String receiverId;
+  const ReceiverDeliveryMapPage({super.key, required this.receiverId});
 
   @override
-  State<SenderDeliveryMapPage> createState() => _SenderDeliveryMapPageState();
+  State<ReceiverDeliveryMapPage> createState() =>
+      _ReceiverDeliveryMapPageState();
 }
 
-class _SenderDeliveryMapPageState extends State<SenderDeliveryMapPage> {
+class _ReceiverDeliveryMapPageState extends State<ReceiverDeliveryMapPage> {
   final MapController _mapController = MapController();
-  String? _senderName;
+  String? _receiverName;
 
   @override
   void initState() {
     super.initState();
-    _loadSenderInfo();
+    _loadReceiverInfo();
   }
 
-  Future<void> _loadSenderInfo() async {
-    final senderDoc = await FirebaseFirestore.instance
+  Future<void> _loadReceiverInfo() async {
+    final receiverDoc = await FirebaseFirestore.instance
         .collection('users')
-        .doc(widget.senderId)
+        .doc(widget.receiverId)
         .get();
     setState(() {
-      _senderName = senderDoc.data()?['Name'] ?? 'ผู้ส่ง';
+      _receiverName = receiverDoc.data()?['Name'] ?? 'ผู้รับ';
     });
   }
 
@@ -35,13 +36,13 @@ class _SenderDeliveryMapPageState extends State<SenderDeliveryMapPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("แผนที่การจัดส่งทั้งหมด"),
-        backgroundColor: Colors.green[600]
+        title: const Text("แผนที่การจัดส่งถึงฉัน"),
+        backgroundColor: Colors.green[600],
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('delivery')
-            .where('sender_id', isEqualTo: widget.senderId)
+            .where('receiver_id', isEqualTo: widget.receiverId)
             .snapshots(),
         builder: (context, deliverySnapshot) {
           if (!deliverySnapshot.hasData) {
@@ -50,10 +51,10 @@ class _SenderDeliveryMapPageState extends State<SenderDeliveryMapPage> {
 
           final deliveries = deliverySnapshot.data!.docs;
           if (deliveries.isEmpty) {
-            return const Center(child: Text("ยังไม่มีการจัดส่ง"));
+            return const Center(child: Text("ยังไม่มีการจัดส่งมาถึงคุณ"));
           }
 
-          // ✅ ใช้ StreamBuilder ซ้อนอีกตัว เพื่อให้ตำแหน่ง Rider อัปเดตแบบ real-time
+          // ✅ ฟังตำแหน่ง Rider แบบ Real-Time
           return StreamBuilder<QuerySnapshot>(
             stream:
                 FirebaseFirestore.instance.collection('riders').snapshots(),
@@ -100,7 +101,7 @@ class _SenderDeliveryMapPageState extends State<SenderDeliveryMapPage> {
     );
   }
 
-  /// ✅ โหลดจุดทั้งหมด (Sender, Receiver, Rider แบบ realtime)
+  /// ✅ โหลดจุดทั้งหมด (Receiver, Sender, Rider)
   Future<List<Marker>> _buildAllMarkers(
     List<QueryDocumentSnapshot> deliveries,
     List<QueryDocumentSnapshot> riders,
@@ -111,7 +112,7 @@ class _SenderDeliveryMapPageState extends State<SenderDeliveryMapPage> {
     for (var delivery in deliveries) {
       final data = delivery.data() as Map<String, dynamic>;
 
-      final receiverId = data['receiver_id'];
+      final senderId = data['sender_id'];
       final pickupAddressId = data['pickup_address_id'];
       final dropoffId = data['dropoff_address_id'];
       final riderId = data['rider_id'];
@@ -120,21 +121,21 @@ class _SenderDeliveryMapPageState extends State<SenderDeliveryMapPage> {
         riderIds.add(riderId);
       }
 
-      // 🔹 ชื่อผู้รับ
-      String receiverName = 'ผู้รับ';
-      if (receiverId != null) {
-        final receiverDoc = await FirebaseFirestore.instance
+      // 🔹 ดึงชื่อผู้ส่ง
+      String senderName = 'ผู้ส่ง';
+      if (senderId != null) {
+        final senderDoc = await FirebaseFirestore.instance
             .collection('users')
-            .doc(receiverId)
+            .doc(senderId)
             .get();
-        receiverName = receiverDoc.data()?['Name'] ?? 'ผู้รับ';
+        senderName = senderDoc.data()?['Name'] ?? 'ผู้ส่ง';
       }
 
-      // 🔹 จุดรับ (Sender)
-      if (pickupAddressId != null) {
+      // 🔹 จุดผู้ส่ง (Sender)
+      if (senderId != null && pickupAddressId != null) {
         final pickupDoc = await FirebaseFirestore.instance
             .collection('users')
-            .doc(widget.senderId)
+            .doc(senderId)
             .collection('addresses')
             .doc(pickupAddressId)
             .get();
@@ -150,7 +151,7 @@ class _SenderDeliveryMapPageState extends State<SenderDeliveryMapPage> {
                 width: 120,
                 height: 80,
                 child: _buildMarker(
-                  label: "ส่งให้: $receiverName",
+                  label: "ผู้ส่ง: $senderName",
                   color: Colors.green,
                 ),
               ),
@@ -159,17 +160,17 @@ class _SenderDeliveryMapPageState extends State<SenderDeliveryMapPage> {
         }
       }
 
-      // 🔹 จุดปลายทาง (Receiver)
-      if (receiverId != null && dropoffId != null) {
-        final addrDoc = await FirebaseFirestore.instance
+      // 🔹 จุดของผู้รับ (Receiver)
+      if (dropoffId != null) {
+        final dropDoc = await FirebaseFirestore.instance
             .collection('users')
-            .doc(receiverId)
+            .doc(widget.receiverId)
             .collection('addresses')
             .doc(dropoffId)
             .get();
 
-        if (addrDoc.exists) {
-          final addr = addrDoc.data()!;
+        if (dropDoc.exists) {
+          final addr = dropDoc.data()!;
           final lat = addr['lat']?.toDouble();
           final lng = addr['lng']?.toDouble();
           if (lat != null && lng != null) {
@@ -179,7 +180,7 @@ class _SenderDeliveryMapPageState extends State<SenderDeliveryMapPage> {
                 width: 120,
                 height: 80,
                 child: _buildMarker(
-                  label: "ได้รับจาก: $_senderName",
+                  label: "ฉัน ($_receiverName)",
                   color: Colors.blue,
                 ),
               ),
@@ -189,7 +190,7 @@ class _SenderDeliveryMapPageState extends State<SenderDeliveryMapPage> {
       }
     }
 
-    // 🔹 Rider markers แบบ real-time
+    // 🔹 จุดของ Rider แบบ Real-Time
     for (var rider in riders) {
       final riderData = rider.data() as Map<String, dynamic>;
       if (riderIds.contains(rider.id)) {
@@ -215,7 +216,7 @@ class _SenderDeliveryMapPageState extends State<SenderDeliveryMapPage> {
     return markers;
   }
 
-  /// 🎯 Marker แบบเรียบง่าย
+  /// 🎯 Marker UI
   Widget _buildMarker({
     required String label,
     required Color color,
@@ -239,7 +240,6 @@ class _SenderDeliveryMapPageState extends State<SenderDeliveryMapPage> {
             textAlign: TextAlign.center,
           ),
         ),
-    
       ],
     );
   }

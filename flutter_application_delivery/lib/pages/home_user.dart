@@ -49,6 +49,7 @@ class _HomeUserState extends State<HomeUser> {
     return Scaffold(
       backgroundColor: Colors.green[50],
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: Colors.green[600],
         elevation: 0,
         title: const Text("Home", style: TextStyle(color: Colors.white)),

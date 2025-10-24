@@ -21,7 +21,8 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
-  final TextEditingController _vehicleNumberController = TextEditingController();
+  final TextEditingController _vehicleNumberController =
+      TextEditingController();
 
   File? _riderImage;
   File? _vehicleImage;
@@ -66,71 +67,87 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
     }
 
     return await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high);
+      desiredAccuracy: LocationAccuracy.high,
+    );
   }
 
-  Future<void> registerRider() async {
-    if (_formKey.currentState!.validate()) {
-      try {
-        final supabase = Supabase.instance.client;
+Future<void> registerRider() async {
+  if (_formKey.currentState!.validate()) {
+    try {
+      final supabase = Supabase.instance.client;
 
-        // ✅ เช็กว่ามีเบอร์นี้แล้วใน Firestore หรือยัง
-        final existQuery = await FirebaseFirestore.instance
-            .collection('riders')
-            .where('Phone', isEqualTo: _phoneController.text.trim())
-            .limit(1)
-            .get();
+      // ✅ ตรวจสอบชื่อและเบอร์โทรซ้ำใน Firestore
+      final existQuery = await FirebaseFirestore.instance
+          .collection('riders')
+          .where('Phone', isEqualTo: _phoneController.text.trim())
+          .get();
 
-        if (existQuery.docs.isNotEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('เบอร์โทรนี้มีอยู่แล้ว')),
-          );
-          return;
-        }
+      final nameQuery = await FirebaseFirestore.instance
+          .collection('riders')
+          .where('Name', isEqualTo: _nameController.text.trim())
+          .get();
 
-        // ✅ ดึงตำแหน่งปัจจุบัน
-        Position position = await _getCurrentLocation();
-
-        // upload รูปผู้ขับ
-        String? riderUrl;
-        if (_riderImage != null) {
-          final fileName =
-              'profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
-          await supabase.storage.from('riders').upload(fileName, _riderImage!);
-          riderUrl = supabase.storage.from('riders').getPublicUrl(fileName);
-        }
-
-        // upload รูปรถ
-        String? vehicleUrl;
-        if (_vehicleImage != null) {
-          final fileName =
-              'vehicle_${DateTime.now().millisecondsSinceEpoch}.jpg';
-          await supabase.storage.from('riders').upload(fileName, _vehicleImage!);
-          vehicleUrl = supabase.storage.from('riders').getPublicUrl(fileName);
-        }
-
-        // ✅ บันทึกข้อมูลใน Firestore พร้อมตำแหน่ง
-        await FirebaseFirestore.instance.collection('riders').add({
-          'Name': _nameController.text.trim(),
-          'Phone': _phoneController.text.trim(),
-          'Password': _passwordController.text.trim(),
-          'VehicleNumber': _vehicleNumberController.text.trim(),
-          'RiderImage': riderUrl ?? '',
-          'VehicleImage': vehicleUrl ?? '',
-          'latitude': position.latitude,
-          'longitude': position.longitude,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('สมัครสำเร็จ!')));
-        Navigator.pop(context);
-      } catch (e) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
+      if (existQuery.docs.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('เบอร์โทรนี้ถูกใช้ไปแล้ว')),
+        );
+        return;
       }
+
+      if (nameQuery.docs.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('ชื่อนี้ถูกใช้ไปแล้ว')),
+        );
+        return;
+      }
+
+      // ✅ ดึงตำแหน่งปัจจุบัน
+      Position position = await _getCurrentLocation();
+
+      // upload รูปผู้ขับ
+      String? riderUrl;
+      if (_riderImage != null) {
+        final fileName =
+            'profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        await supabase.storage.from('riders').upload(fileName, _riderImage!);
+        riderUrl = supabase.storage.from('riders').getPublicUrl(fileName);
+      }
+
+      // upload รูปรถ
+      String? vehicleUrl;
+      if (_vehicleImage != null) {
+        final fileName =
+            'vehicle_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        await supabase.storage.from('riders').upload(fileName, _vehicleImage!);
+        vehicleUrl = supabase.storage.from('riders').getPublicUrl(fileName);
+      }
+
+      // ✅ บันทึกข้อมูลใน Firestore พร้อมพิกัด
+      await FirebaseFirestore.instance.collection('riders').add({
+        'Name': _nameController.text.trim(),
+        'Phone': _phoneController.text.trim(),
+        'Password': _passwordController.text.trim(),
+        'VehicleNumber': _vehicleNumberController.text.trim(),
+        'RiderImage': riderUrl ?? '',
+        'VehicleImage': vehicleUrl ?? '',
+        'latitude': position.latitude,
+        'longitude': position.longitude,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('สมัครสำเร็จ!')),
+      );
+
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('เกิดข้อผิดพลาด: $e')),
+      );
     }
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -151,7 +168,9 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
                 children: [
                   const CircleAvatar(
                     radius: 50,
-                    backgroundImage: AssetImage('assets/logo.png'),
+                    backgroundImage: NetworkImage(
+                      'https://cfpoeeqozwxpfepkhmsc.supabase.co/storage/v1/object/public/users/e8402580-ff79-4a1d-a1fb-efcecdd4f9d0.jpg',
+                    ),
                   ),
                   const SizedBox(height: 20),
                   const Text(
@@ -199,7 +218,7 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
                         backgroundImage: _riderImage != null
                             ? FileImage(_riderImage!)
                             : const AssetImage('assets/profile_placeholder.png')
-                                as ImageProvider,
+                                  as ImageProvider,
                       ),
                     ],
                   ),
@@ -217,7 +236,7 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
                         backgroundImage: _vehicleImage != null
                             ? FileImage(_vehicleImage!)
                             : const AssetImage('assets/vehicle_placeholder.png')
-                                as ImageProvider,
+                                  as ImageProvider,
                       ),
                     ],
                   ),

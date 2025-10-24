@@ -53,6 +53,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       backgroundColor: Colors.green[50],
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text("โปรไฟล์ผู้ใช้"),
         backgroundColor: Colors.green[700],
         foregroundColor: Colors.white,

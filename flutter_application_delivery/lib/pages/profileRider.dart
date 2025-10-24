@@ -37,6 +37,7 @@ class _ProfileRiderPageState extends State<ProfileRiderPage> {
 
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text("โปรไฟล์ไรเดอร์"),
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,

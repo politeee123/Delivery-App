@@ -37,80 +37,91 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
     }
   }
 
-  Future<void> registerUser() async {
-    if (_formKey.currentState!.validate()) {
-      try {
-        final supabase = Supabase.instance.client;
+Future<void> registerUser() async {
+  if (_formKey.currentState!.validate()) {
+    try {
+      final supabase = Supabase.instance.client;
 
-        // ✅ ตรวจสอบเบอร์โทรซ้ำ
-        final existQuery = await FirebaseFirestore.instance
-            .collection('users')
-            .where('Phone', isEqualTo: _phoneController.text.trim())
-            .limit(1)
-            .get();
+      // ✅ ตรวจสอบชื่อและเบอร์โทรซ้ำ
+      final phoneQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .where('Phone', isEqualTo: _phoneController.text.trim())
+          .limit(1)
+          .get();
 
-        if (existQuery.docs.isNotEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('เบอร์โทรนี้ถูกใช้งานแล้ว')),
-          );
-          return;
-        }
+      final nameQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .where('Name', isEqualTo: _nameController.text.trim())
+          .limit(1)
+          .get();
 
-        // ✅ อัปโหลดรูปไป Supabase Storage
-        String? userUrl;
-        if (_userImage != null) {
-          final fileName = 'user_${DateTime.now().millisecondsSinceEpoch}.jpg';
-          await supabase.storage.from('users').upload(fileName, _userImage!);
-          userUrl = supabase.storage.from('users').getPublicUrl(fileName);
-        }
+      if (phoneQuery.docs.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('เบอร์โทรนี้ถูกใช้งานแล้ว')),
+        );
+        return;
+      }
 
-        // ✅ เพิ่ม user document
-        final userRef =
-            await FirebaseFirestore.instance.collection('users').add({
-          'Name': _nameController.text.trim(),
-          'Phone': _phoneController.text.trim(),
-          'Password': _passwordController.text.trim(),
-          'Image': userUrl ?? '',
+      if (nameQuery.docs.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('ชื่อนี้ถูกใช้งานแล้ว')),
+        );
+        return;
+      }
+
+      // ✅ อัปโหลดรูปไป Supabase Storage
+      String? userUrl;
+      if (_userImage != null) {
+        final fileName = 'user_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        await supabase.storage.from('users').upload(fileName, _userImage!);
+        userUrl = supabase.storage.from('users').getPublicUrl(fileName);
+      }
+
+      // ✅ เพิ่ม user document
+      final userRef = await FirebaseFirestore.instance.collection('users').add({
+        'Name': _nameController.text.trim(),
+        'Phone': _phoneController.text.trim(),
+        'Password': _passwordController.text.trim(),
+        'Image': userUrl ?? '',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // ✅ ถ้ามีการเลือกพิกัด ให้บันทึกลง subcollection addresses
+      if (selectedLocation1 != null) {
+        await userRef.collection('addresses').add({
+          'label': 'ที่อยู่ 1',
+          'lat': selectedLocation1!.latitude,
+          'lng': selectedLocation1!.longitude,
           'createdAt': FieldValue.serverTimestamp(),
         });
-
-        // ✅ ถ้ามีการเลือกพิกัด ให้บันทึกลง subcollection addresses
-        if (selectedLocation1 != null) {
-          await userRef.collection('addresses').add({
-            'label': 'ที่อยู่ 1',
-            'lat': selectedLocation1!.latitude,
-            'lng': selectedLocation1!.longitude,
-            'createdAt': FieldValue.serverTimestamp(),
-          });
-        }
-
-        if (selectedLocation2 != null) {
-          await userRef.collection('addresses').add({
-            'label': 'ที่อยู่ 2',
-            'lat': selectedLocation2!.latitude,
-            'lng': selectedLocation2!.longitude,
-            'createdAt': FieldValue.serverTimestamp(),
-          });
-        }
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('สมัครสมาชิกสำเร็จ!')),
-        );
-        Navigator.pop(context);
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('เกิดข้อผิดพลาด: $e')),
-        );
       }
+
+      if (selectedLocation2 != null) {
+        await userRef.collection('addresses').add({
+          'label': 'ที่อยู่ 2',
+          'lat': selectedLocation2!.latitude,
+          'lng': selectedLocation2!.longitude,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('สมัครสมาชิกสำเร็จ!')),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('เกิดข้อผิดพลาด: $e')),
+      );
     }
   }
+}
+
 
   Future<void> pickLocation(int slot) async {
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const SelectLocationPage(),
-      ),
+      MaterialPageRoute(builder: (context) => const SelectLocationPage()),
     );
 
     if (result != null) {
@@ -143,7 +154,9 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
                 children: [
                   const CircleAvatar(
                     radius: 50,
-                    backgroundImage: AssetImage('assets/logo.png'),
+                    backgroundImage: NetworkImage(
+                      'https://cfpoeeqozwxpfepkhmsc.supabase.co/storage/v1/object/public/users/e8402580-ff79-4a1d-a1fb-efcecdd4f9d0.jpg',
+                    ),
                   ),
                   const SizedBox(height: 20),
                   const Text(
@@ -194,7 +207,7 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
                         backgroundImage: _userImage != null
                             ? FileImage(_userImage!)
                             : const AssetImage('assets/profile_placeholder.png')
-                                as ImageProvider,
+                                  as ImageProvider,
                       ),
                     ],
                   ),

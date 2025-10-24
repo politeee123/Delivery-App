@@ -136,6 +136,7 @@ class _RiderDeliveryDetailState extends State<RiderDeliveryDetail> {
 
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text('รายละเอียดการจัดส่ง'),
         backgroundColor: Colors.green,
       ),

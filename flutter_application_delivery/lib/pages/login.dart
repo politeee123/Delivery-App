@@ -17,7 +17,9 @@ class LoginPage extends StatelessWidget {
           children: [
             const CircleAvatar(
               radius: 50,
-              backgroundImage: AssetImage('assets/logo.png'),
+              backgroundImage: NetworkImage(
+                'https://cfpoeeqozwxpfepkhmsc.supabase.co/storage/v1/object/public/users/e8402580-ff79-4a1d-a1fb-efcecdd4f9d0.jpg',
+              ),
             ),
             const SizedBox(height: 30),
 

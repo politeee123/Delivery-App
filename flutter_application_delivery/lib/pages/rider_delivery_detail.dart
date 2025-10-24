@@ -206,7 +206,7 @@ class _RiderDeliveryDetailState extends State<RiderDeliveryDetail> {
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 subtitle:
-                    Text(productData!['Item_detail'] ?? 'ไม่มีรายละเอียดสินค้า'),
+                    Text(productData!['Desciption'] ?? 'ไม่มีรายละเอียดสินค้า'),
               ),
             ),
 

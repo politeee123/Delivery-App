@@ -7,6 +7,7 @@ import 'package:flutter_application_delivery/pages/login.dart';
 import 'package:flutter_application_delivery/pages/proflie.dart';
 import 'package:flutter_application_delivery/pages/receiver_page.dart';
 import 'package:flutter_application_delivery/pages/search_receiver_page.dart';
+import 'package:flutter_application_delivery/pages/sender_delivery_map.dart';
 
 class SenderPage extends StatefulWidget {
   final String id;
@@ -24,16 +25,22 @@ class _SenderPageState extends State<SenderPage> {
 
     switch (index) {
       case 0:
-        Navigator.push(context,
-            MaterialPageRoute(builder: (context) => HomeUser(id: widget.id)));
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => HomeUser(id: widget.id)),
+        );
         break;
       case 2:
-        Navigator.push(context,
-            MaterialPageRoute(builder: (context) => ReceiverPage(id: widget.id)));
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => ReceiverPage(id: widget.id)),
+        );
         break;
       case 3:
-        Navigator.push(context,
-            MaterialPageRoute(builder: (context) => ProfilePage(id: widget.id)));
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => ProfilePage(id: widget.id)),
+        );
         break;
     }
   }
@@ -204,6 +211,35 @@ class _SenderPageState extends State<SenderPage> {
                 },
               ),
             ),
+
+            // 🔹 ปุ่มดูการจัดส่งทั้งหมด (อยู่ก่อน Navbar)
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SenderDeliveryMapPage(senderId: widget.id),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.map),
+                label: const Text("ดูการจัดส่งทั้งหมดบนแผนที่"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green[800],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  textStyle: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
           ],
         ),
       ),

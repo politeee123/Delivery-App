@@ -309,9 +309,8 @@ class _RiderDeliveryDetailState extends State<RiderDeliveryDetail> {
           ),
           children: [
             TileLayer(
-              urlTemplate:
-                  "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-              subdomains: const ['a', 'b', 'c'],
+              urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+              subdomains: ['a', 'b', 'c', 'd'],
             ),
             MarkerLayer(markers: [
               Marker(

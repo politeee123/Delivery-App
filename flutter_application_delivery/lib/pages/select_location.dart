@@ -77,6 +77,7 @@ class _SelectLocationPageState extends State<SelectLocationPage> {
                 TileLayer(
                   urlTemplate:
                       "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                      userAgentPackageName: 'com.politeee.delivery',
                   subdomains: const ['a', 'b', 'c'],
                 ),
                 if (_selectedLocation != null)

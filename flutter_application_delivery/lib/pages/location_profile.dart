@@ -34,6 +34,7 @@ class LocationProfilePage extends StatelessWidget {
           TileLayer(
             urlTemplate:
                 "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                userAgentPackageName: 'com.politeee.delivery',
             subdomains: const ['a', 'b', 'c'],
           ),
           MarkerLayer(

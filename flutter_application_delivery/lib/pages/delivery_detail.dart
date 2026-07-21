@@ -31,9 +31,9 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final data = snapshot.data!.data() as Map<String, dynamic>;
+          final data = snapshot.data?.data() as Map<String, dynamic>? ?? {};
 
-          return FutureBuilder<DocumentSnapshot>(
+          return FutureBuilder<DocumentSnapshot?>(
             future: FirebaseFirestore.instance
                 .collection('Item')
                 .doc(data['product_id'])
@@ -41,8 +41,8 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
             builder: (context, itemSnap) {
               final itemData = itemSnap.data?.data() as Map<String, dynamic>?;
 
-              // ดึงข้อมูลผู้รับ
-              return FutureBuilder<DocumentSnapshot>(
+              // 🔹 ดึงข้อมูลผู้รับ
+              return FutureBuilder<DocumentSnapshot?>(
                 future: FirebaseFirestore.instance
                     .collection('users')
                     .doc(data['receiver_id'])
@@ -51,9 +51,10 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
                   final receiverData =
                       receiverSnap.data?.data() as Map<String, dynamic>?;
 
-                  // ดึงข้อมูลผู้ขับ (rider)
-                  return FutureBuilder<DocumentSnapshot>(
-                    future: (data['rider_id'] != null && data['rider_id'] != '')
+                  // 🔹 ดึงข้อมูลไรเดอร์ (ถ้ามี)
+                  return FutureBuilder<DocumentSnapshot?>(
+                    future: (data['rider_id'] != null &&
+                            data['rider_id'].toString().isNotEmpty)
                         ? FirebaseFirestore.instance
                             .collection('riders')
                             .doc(data['rider_id'])
@@ -63,8 +64,8 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
                       final riderData =
                           riderSnap.data?.data() as Map<String, dynamic>?;
 
-                      // 📍 ดึงข้อมูลพิกัด dropoff
-                      return FutureBuilder<DocumentSnapshot>(
+                      // 🔹 ดึงข้อมูลพิกัด dropoff
+                      return FutureBuilder<DocumentSnapshot?>(
                         future: FirebaseFirestore.instance
                             .collection('users')
                             .doc(data['receiver_id'])
@@ -91,10 +92,9 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
                                       itemData?['Image'] ?? '',
                                       height: 200,
                                       fit: BoxFit.cover,
-                                      errorBuilder: (c, e, s) => const Icon(
-                                        Icons.image_not_supported,
-                                        size: 100,
-                                      ),
+                                      errorBuilder: (c, e, s) =>
+                                          const Icon(Icons.image_not_supported,
+                                              size: 100),
                                     ),
                                   ),
                                 ),
@@ -156,10 +156,8 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
                                         const Divider(height: 20),
                                         Row(
                                           children: const [
-                                            Icon(
-                                              Icons.location_on,
-                                              color: Colors.redAccent,
-                                            ),
+                                            Icon(Icons.location_on,
+                                                color: Colors.redAccent),
                                             SizedBox(width: 8),
                                             Text(
                                               "พิกัดที่อยู่จัดส่ง",
@@ -208,8 +206,7 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
                                                     ),
                                                     MarkerLayer(markers: [
                                                       Marker(
-                                                        point: LatLng(
-                                                            latitude,
+                                                        point: LatLng(latitude,
                                                             longitude),
                                                         width: 60,
                                                         height: 60,
@@ -295,7 +292,9 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
                                       ),
                                       const SizedBox(height: 12),
                                       if (data['image'] != null &&
-                                          data['image'].toString().isNotEmpty)
+                                          data['image']
+                                              .toString()
+                                              .isNotEmpty)
                                         ClipRRect(
                                           borderRadius:
                                               BorderRadius.circular(12),

@@ -197,12 +197,12 @@ class _DeliveryMapPageState extends State<DeliveryMapPage> {
       final file = File(image.path);
       final imageUrl = await uploadToSupabase(file);
 
-      if (imageUrl == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('อัปโหลดรูปไม่สำเร็จ ❌')),
-        );
-        return;
-      }
+      // if (imageUrl == null) {
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     const SnackBar(content: Text('อัปโหลดรูปไม่สำเร็จ ❌')),
+      //   );
+      //   return;
+      // }
 
       if (!isPickupDone) {
         // 📦 สถานะ 3
